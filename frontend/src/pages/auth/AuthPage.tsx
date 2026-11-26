@@ -120,32 +120,34 @@ const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
       password: form.password,
     })
 
+
     // Memeriksa respons login dari backend saat proses debugging.
     console.log('LOGIN RESPONSE:', result)
-    console.log('USER ROLE:', result.user?.role)
+    console.log('USER ROLE:', result.data?.user?.role)
 
     // Memastikan backend mengembalikan token dan informasi pengguna.
-    if (!result.token || !result.user) {
+    if (!result.data?.token || !result.data?.user) {
       throw new Error('Respons login dari server tidak lengkap.')
     }
 
     // Menyimpan sesi autentikasi setelah login berhasil.
-    saveSession(result.token, result.user)
-    
+    saveSession(result.data.token, result.data.user)
+
     // Menampilkan role dan memastikan fungsi navigasi terpanggil.
-    console.log('ROLE:', JSON.stringify(result.user.role))
+    console.log('ROLE:', JSON.stringify(result.data.user.role))
     console.log('NAVIGATE FUNCTION:', typeof navigate)
-    
-    if (result.user.role?.trim().toLowerCase() === 'warga') {
+
+    if (result.data.user.role?.trim().toLowerCase() === 'warga') {
       console.log('Mengarahkan pengguna ke dashboard warga...')
       navigate('/warga/dashboard')
       return
     }
 
     setMessage(
-      `Login berhasil. Dashboard ${result.user.role} belum tersedia.`,
+      `Login berhasil. Dashboard ${result.data.user.role} belum tersedia.`,
     )
     setMessageType('success')
+
   } catch (error) {
     // Menampilkan pesan validasi atau error yang dikirim backend.
     setMessage(

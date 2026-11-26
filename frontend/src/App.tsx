@@ -11,6 +11,8 @@ import AuthPage from './pages/auth/AuthPage'
 // Mengambil halaman dashboard khusus warga.
 import DashboardWarga from './pages/DashboardWarga'
 
+import ProtectedRoute from './components/ProtectedRoute'
+
 // Komponen utama yang mengatur perpindahan antarhalaman CivicMind.
 function App() {
   return (
@@ -30,9 +32,14 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
 
         <Route
-        path="/warga/dashboard"
-        element={<DashboardWarga />}
-        />
+          path="/warga/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['warga']}>
+              <DashboardWarga />
+            </ProtectedRoute>
+          }/>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       

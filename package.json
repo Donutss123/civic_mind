@@ -4,7 +4,10 @@
   "description": "��#\u0000 \u0000c\u0000i\u0000v\u0000i\u0000c\u0000_\u0000m\u0000i\u0000n\u0000d\u0000\r\u0000 \u0000",
   "main": "index.js",
   "scripts": {
-  "dev": "concurrently -n BACKEND,FRONTEND \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
+    "be": "npm run dev --prefix backend",
+    "fe": "npm run dev --prefix frontend",
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
   },
   "repository": {
     "type": "git",

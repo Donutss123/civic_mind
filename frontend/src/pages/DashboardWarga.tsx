@@ -1,6 +1,8 @@
-
 // Mengambil komponen navigasi dan ikon yang dibutuhkan dashboard.
-import { Link } from 'react-router-dom'
+import { Link, useNavigate  } from 'react-router-dom'
+import { clearSession } from '../services/auth'
+import { getCurrentUser, type AuthUser } from '../services/auth'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   PlusCircle,
@@ -16,7 +18,6 @@ import {
   Wrench,
   CheckCircle2,
   ArrowUpRight,
-  Menu,
   Leaf,
 } from 'lucide-react'
 
@@ -103,6 +104,31 @@ function StatCard({
 
 // Halaman utama untuk warga setelah masuk ke CivicMind.
 function DashboardWarga() {
+  const navigate = useNavigate()
+
+  // Menyimpan informasi pengguna yang sedang login.
+  const [user, setUser] = useState<AuthUser | null>(null)
+
+  // Mengambil informasi pengguna dari backend.
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const currentUser = await getCurrentUser()
+        setUser(currentUser)
+      } catch (error) {
+        console.error('Gagal mengambil data pengguna:', error)
+      }
+    }
+
+    fetchUser()
+  }, [])
+
+  // Menghapus sesi pengguna dan kembali ke halaman login.
+  const handleLogout = () => {
+    clearSession()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="dashboard-layout">
       {/* Sidebar untuk navigasi utama warga. */}
@@ -150,11 +176,14 @@ function DashboardWarga() {
             </Link>
           </div>
 
-          {/* Tombol keluar sementara mengarah ke halaman login. */}
-          <Link to="/login" className="dashboard-logout">
+          {/* Tombol untuk mengakhiri sesi pengguna. */}
+          <button
+            type="button"
+            className="dashboard-logout"
+            onClick={handleLogout}>
             <LogOut size={18} />
             <span>Keluar</span>
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -186,10 +215,12 @@ function DashboardWarga() {
             </button>
 
             <div className="dashboard-user">
-              <div className="dashboard-avatar">JD</div>
+              <div className="dashboard-avatar">
+                {user?.name?.charAt(0).toUpperCase() || '?'}
+              </div>
               <div>
-                <strong>Jay Doe</strong>
-                <small>Warga</small>
+                <strong>{user?.name || 'Memuat pengguna...'}</strong>
+                <small>{user?.role || 'Warga'}</small>
               </div>
             </div>
           </div>
@@ -200,7 +231,7 @@ function DashboardWarga() {
           <section className="dashboard-welcome">
             <div>
               <span className="dashboard-eyebrow">DASHBOARD WARGA</span>
-              <h1>Halo, Jay! 👋</h1>
+              <h1>Halo, {user?.name || 'Warga'}! 👋</h1>
               <p>
                 Pantau laporanmu dan ikut berkontribusi untuk lingkungan yang lebih baik.
               </p>
