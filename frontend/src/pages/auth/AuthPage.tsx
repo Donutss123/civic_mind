@@ -22,8 +22,6 @@ import {
 // Mengambil stylesheet khusus halaman autentikasi.
 import './AuthPage.css'
 
-
-
 // Menentukan mode halaman yang diperbolehkan.
 interface AuthPageProps {
   mode: 'login' | 'register'
@@ -49,6 +47,7 @@ function AuthPage({ mode }: AuthPageProps) {
   // Menyimpan pesan validasi atau informasi form.
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success' | ''>('')
+
   // Menandai proses request agar tombol tidak dikirim berulang kali.
   const [isLoading, setIsLoading] = useState(false)
 
@@ -68,100 +67,95 @@ function AuthPage({ mode }: AuthPageProps) {
     setMessageType('')
   }
 
-  
-  
-// Memvalidasi input lalu mengirim data ke endpoint backend yang sesuai.
-const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault()
+  // Memvalidasi input lalu mengirim data ke backend.
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
-  // Mengosongkan pesan sebelumnya dan mengaktifkan indikator loading.
-  setMessage('')
-  setMessageType('')
-  setIsLoading(true)
+    setMessage('')
+    setMessageType('')
+    setIsLoading(true)
 
-  try {
-    // Memastikan email memiliki format yang benar.
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    try {
+      // Memastikan email memiliki format yang benar.
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-    if (!emailPattern.test(form.email)) {
-      throw new Error('Format email belum benar.')
-    }
-
-    // Memastikan password memenuhi batas minimal backend.
-    if (form.password.length < 8) {
-      throw new Error('Password minimal harus 8 karakter.')
-    }
-
-    if (isRegister) {
-      // Memastikan nama dan konfirmasi password sudah benar.
-      if (!form.name.trim()) {
-        throw new Error('Nama lengkap wajib diisi.')
+      if (!emailPattern.test(form.email)) {
+        throw new Error('Format email belum benar.')
       }
 
-      if (form.password !== form.confirmPassword) {
-        throw new Error('Konfirmasi password tidak cocok.')
+      // Memastikan password memenuhi batas minimal backend.
+      if (form.password.length < 8) {
+        throw new Error('Password minimal harus 8 karakter.')
       }
 
-      // Mengirim data registrasi ke POST /api/auth/register.
-      const result = await registerUser({
-        name: form.name.trim(),
+      if (isRegister) {
+        // Memastikan nama dan konfirmasi password sudah benar.
+        if (!form.name.trim()) {
+          throw new Error('Nama lengkap wajib diisi.')
+        }
+
+        if (form.password !== form.confirmPassword) {
+          throw new Error('Konfirmasi password tidak cocok.')
+        }
+
+        // Mengirim data registrasi ke backend.
+        const result = await registerUser({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+        })
+
+        setMessage(result.message || 'Registrasi berhasil. Silakan login.')
+        setMessageType('success')
+        return
+      }
+
+      // Mengirim kredensial ke backend.
+      const result = await loginUser({
         email: form.email.trim(),
         password: form.password,
       })
 
-      setMessage(result.message || 'Registrasi berhasil. Silakan login.')
-      setMessageType('success')
-      return
+      // Memastikan backend mengembalikan token dan informasi pengguna.
+      if (!result.data?.token || !result.data?.user) {
+        throw new Error('Respons login dari server tidak lengkap.')
+      }
+
+      // Menyimpan sesi autentikasi setelah login berhasil.
+      saveSession(result.data.token, result.data.user)
+
+      // Mengarahkan pengguna sesuai role dari backend.
+      const role = result.data.user.role?.trim().toLowerCase()
+
+      switch (role) {
+        case 'warga':
+          navigate('/warga/dashboard', { replace: true })
+          break
+
+        case 'admin':
+          navigate('/admin/dashboard', { replace: true })
+          break
+
+        case 'petugas':
+          navigate('/petugas/dashboard', { replace: true })
+          break
+
+        default:
+          throw new Error('Role akun tidak dikenali.')
+      }
+    } catch (error) {
+      // Menampilkan pesan validasi atau error dari backend.
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Tidak dapat terhubung ke server.',
+      )
+      setMessageType('error')
+    } finally {
+      // Mengaktifkan kembali tombol setelah request selesai.
+      setIsLoading(false)
     }
-
-    // Mengirim kredensial ke POST /api/auth/login.
-    const result = await loginUser({
-      email: form.email.trim(),
-      password: form.password,
-    })
-
-
-    // Memeriksa respons login dari backend saat proses debugging.
-    console.log('LOGIN RESPONSE:', result)
-    console.log('USER ROLE:', result.data?.user?.role)
-
-    // Memastikan backend mengembalikan token dan informasi pengguna.
-    if (!result.data?.token || !result.data?.user) {
-      throw new Error('Respons login dari server tidak lengkap.')
-    }
-
-    // Menyimpan sesi autentikasi setelah login berhasil.
-    saveSession(result.data.token, result.data.user)
-
-    // Menampilkan role dan memastikan fungsi navigasi terpanggil.
-    console.log('ROLE:', JSON.stringify(result.data.user.role))
-    console.log('NAVIGATE FUNCTION:', typeof navigate)
-
-    if (result.data.user.role?.trim().toLowerCase() === 'warga') {
-      console.log('Mengarahkan pengguna ke dashboard warga...')
-      navigate('/warga/dashboard')
-      return
-    }
-
-    setMessage(
-      `Login berhasil. Dashboard ${result.data.user.role} belum tersedia.`,
-    )
-    setMessageType('success')
-
-  } catch (error) {
-    // Menampilkan pesan validasi atau error yang dikirim backend.
-    setMessage(
-      error instanceof Error
-        ? error.message
-        : 'Tidak dapat terhubung ke server.',
-    )
-    setMessageType('error')
-  } finally {
-    // Mengaktifkan kembali tombol setelah request selesai.
-    setIsLoading(false)
   }
-}
-
 
   return (
     <main className="auth-page">
@@ -288,7 +282,9 @@ const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
                   className="auth-password-toggle"
                   onClick={() => setShowPassword((previous) => !previous)}
                   aria-label={
-                    showPassword ? 'Sembunyikan password' : 'Tampilkan password'
+                    showPassword
+                      ? 'Sembunyikan password'
+                      : 'Tampilkan password'
                   }
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

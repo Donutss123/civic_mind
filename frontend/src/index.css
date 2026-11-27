@@ -19,6 +19,8 @@
   --background: #f0fdf4;
   --text-main: #173b2d;
   --text-muted: #64748b;
+  --card-border: #cbd5cf;
+  --card-shadow: 0 2px 8px rgba(23, 59, 45, 0.04);
 }
 
 * {

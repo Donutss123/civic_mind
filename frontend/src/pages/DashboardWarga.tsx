@@ -1,8 +1,8 @@
-// Mengambil komponen navigasi dan ikon yang dibutuhkan dashboard.
-import { Link, useNavigate  } from 'react-router-dom'
-import { clearSession } from '../services/auth'
-import { getCurrentUser, type AuthUser } from '../services/auth'
-import { useEffect, useState } from 'react'
+
+import { Link, useNavigate } from 'react-router-dom'
+import { clearSession, getCurrentUser, type AuthUser } from '../services/auth'
+import { getReports, getCategories, type ReportData, type Category } from '../services/report'
+import { useEffect, useMemo, useState } from 'react'
 import {
   LayoutDashboard,
   PlusCircle,
@@ -21,62 +21,50 @@ import {
   Leaf,
 } from 'lucide-react'
 
-// Mengambil stylesheet khusus dashboard warga.
 import './DashboardWarga.css'
 
-// Tipe data untuk setiap laporan yang ditampilkan.
-interface Report {
-  id: string
-  title: string
-  category: string
-  location: string
-  date: string
-  status: 'Menunggu' | 'Diproses' | 'Selesai'
+// Mengubah status backend menjadi label yang ditampilkan.
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'menunggu_verifikasi':
+      return 'Menunggu'
+    case 'diproses':
+      return 'Diproses'
+    case 'selesai':
+      return 'Selesai'
+    case 'ditolak':
+      return 'Ditolak'
+    default:
+      return status
+  }
 }
 
-// Data sementara untuk mengisi tampilan dashboard.
-const reports: Report[] = [
-  {
-    id: 'LAP-001',
-    title: 'Sampah menumpuk di pinggir jalan',
-    category: 'Kebersihan',
-    location: 'Jl. Melati, RT 02',
-    date: '24 November 2026',
-    status: 'Menunggu',
-  },
-  {
-    id: 'LAP-002',
-    title: 'Jalan berlubang dekat balai warga',
-    category: 'Infrastruktur',
-    location: 'Jl. Mawar, RT 04',
-    date: '22 November 2026',
-    status: 'Diproses',
-  },
-  {
-    id: 'LAP-003',
-    title: 'Lampu penerangan jalan tidak menyala',
-    category: 'Fasilitas Umum',
-    location: 'Jl. Kenanga, RT 01',
-    date: '19 November 2026',
-    status: 'Selesai',
-  },
-]
-
 // Mengubah status menjadi class CSS yang sesuai.
-function getStatusClass(status: Report['status']) {
+function getStatusClass(status: string) {
   switch (status) {
-    case 'Menunggu':
+    case 'menunggu_verifikasi':
       return 'status-waiting'
-    case 'Diproses':
+    case 'diproses':
       return 'status-progress'
-    case 'Selesai':
+    case 'selesai':
       return 'status-done'
+    case 'ditolak':
+      return 'status-waiting'
     default:
       return ''
   }
 }
 
-// Komponen kartu statistik agar tampilan setiap ringkasan konsisten.
+// Mengubah tanggal database menjadi format tanggal Indonesia.
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+// Komponen kartu statistik.
 function StatCard({
   title,
   value,
@@ -106,22 +94,88 @@ function StatCard({
 function DashboardWarga() {
   const navigate = useNavigate()
 
-  // Menyimpan informasi pengguna yang sedang login.
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [reports, setReports] = useState<ReportData[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  // Mengambil informasi pengguna dari backend.
+  // Mengambil data pengguna, laporan, dan kategori dari backend.
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const currentUser = await getCurrentUser()
+        setIsLoading(true)
+        setErrorMessage('')
+
+        const [currentUser, reportData, categoryData] = await Promise.all([
+          getCurrentUser(),
+          getReports(),
+          getCategories(),
+        ])
+
         setUser(currentUser)
+        setReports(reportData)
+        setCategories(categoryData)
       } catch (error) {
-        console.error('Gagal mengambil data pengguna:', error)
+        console.error('Gagal mengambil data dashboard:', error)
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Gagal mengambil data dashboard.'
+        )
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    fetchUser()
+    fetchDashboardData()
   }, [])
+
+  // Menghitung jumlah laporan berdasarkan status dari database.
+  const totalReports = reports.length
+  const waitingReports = reports.filter(
+    (report) => report.status === 'menunggu_verifikasi'
+  ).length
+  const processingReports = reports.filter(
+    (report) => report.status === 'diproses'
+  ).length
+  const completedReports = reports.filter(
+    (report) => report.status === 'selesai'
+  ).length
+
+  // Membuat daftar kategori agar ID kategori bisa ditampilkan sebagai nama.
+  const categoryMap = useMemo(() => {
+    return new Map(
+      categories.map((category) => [String(category.id), category.name])
+    )
+  }, [categories])
+
+  // Mengurutkan laporan terbaru dan menerapkan pencarian.
+  const filteredReports = useMemo(() => {
+    return [...reports]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      )
+      .filter((report) => {
+        const categoryName =
+          report.category_name ||
+          categoryMap.get(String(report.category_id)) ||
+          'Kategori'
+
+        const keyword = searchQuery.toLowerCase()
+
+        return (
+          report.title.toLowerCase().includes(keyword) ||
+          report.location.toLowerCase().includes(keyword) ||
+          categoryName.toLowerCase().includes(keyword) ||
+          String(report.id).toLowerCase().includes(keyword)
+        )
+      })
+      .slice(0, 5)
+  }, [reports, categories, categoryMap, searchQuery])
 
   // Menghapus sesi pengguna dan kembali ke halaman login.
   const handleLogout = () => {
@@ -131,7 +185,6 @@ function DashboardWarga() {
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar untuk navigasi utama warga. */}
       <aside className="dashboard-sidebar">
         <Link to="/warga/dashboard" className="dashboard-brand">
           <span className="dashboard-brand-icon">
@@ -170,24 +223,26 @@ function DashboardWarga() {
               <Leaf size={20} />
             </div>
             <strong>Peduli lingkungan?</strong>
-            <p>Laporkan masalah di sekitarmu dan bantu lingkungan menjadi lebih baik.</p>
+            <p>
+              Laporkan masalah di sekitarmu dan bantu lingkungan menjadi
+              lebih baik.
+            </p>
             <Link to="/warga/laporan/buat">
               Buat laporan <ArrowUpRight size={15} />
             </Link>
           </div>
 
-          {/* Tombol untuk mengakhiri sesi pengguna. */}
           <button
             type="button"
             className="dashboard-logout"
-            onClick={handleLogout}>
+            onClick={handleLogout}
+          >
             <LogOut size={18} />
             <span>Keluar</span>
           </button>
         </div>
       </aside>
 
-      {/* Area konten utama dashboard. */}
       <main className="dashboard-main">
         <header className="dashboard-topbar">
           <div className="dashboard-mobile-brand">
@@ -201,6 +256,8 @@ function DashboardWarga() {
               type="search"
               placeholder="Cari laporan..."
               aria-label="Cari laporan"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
 
@@ -227,55 +284,62 @@ function DashboardWarga() {
         </header>
 
         <div className="dashboard-content">
-          {/* Sapaan dan tombol untuk membuat laporan baru. */}
           <section className="dashboard-welcome">
             <div>
               <span className="dashboard-eyebrow">DASHBOARD WARGA</span>
               <h1>Halo, {user?.name || 'Warga'}! 👋</h1>
               <p>
-                Pantau laporanmu dan ikut berkontribusi untuk lingkungan yang lebih baik.
+                Pantau laporanmu dan ikut berkontribusi untuk lingkungan
+                yang lebih baik.
               </p>
             </div>
 
-            <Link to="/warga/laporan/buat" className="dashboard-create-button">
+            <Link
+              to="/warga/laporan/buat"
+              className="dashboard-create-button"
+            >
               <PlusCircle size={18} />
               Buat Laporan
             </Link>
           </section>
 
-          {/* Ringkasan jumlah laporan berdasarkan status. */}
+          {errorMessage && (
+            <div role="alert">
+              Gagal memuat data dashboard: {errorMessage}
+            </div>
+          )}
+
           <section className="dashboard-stats">
             <StatCard
               title="Total Laporan"
-              value={12}
+              value={isLoading ? 0 : totalReports}
               description="Semua laporan kamu"
               icon={<FileText size={21} />}
               color="stat-green"
             />
             <StatCard
               title="Menunggu"
-              value={4}
+              value={isLoading ? 0 : waitingReports}
               description="Menunggu verifikasi"
               icon={<Clock3 size={21} />}
               color="stat-orange"
             />
             <StatCard
               title="Diproses"
-              value={3}
+              value={isLoading ? 0 : processingReports}
               description="Sedang ditangani"
               icon={<Wrench size={21} />}
               color="stat-blue"
             />
             <StatCard
               title="Selesai"
-              value={5}
+              value={isLoading ? 0 : completedReports}
               description="Berhasil diselesaikan"
               icon={<CheckCircle2 size={21} />}
               color="stat-purple"
             />
           </section>
 
-          {/* Daftar laporan terbaru milik warga. */}
           <section className="dashboard-report-section">
             <div className="dashboard-section-heading">
               <div>
@@ -289,49 +353,67 @@ function DashboardWarga() {
             </div>
 
             <div className="dashboard-report-list">
-              {reports.map((report) => (
-                <article className="dashboard-report-card" key={report.id}>
-                  <div className="dashboard-report-symbol">
-                    <FileText size={21} />
-                  </div>
-
-                  <div className="dashboard-report-info">
-                    <div className="dashboard-report-meta">
-                      <span>{report.id}</span>
-                      <span className={`dashboard-status ${getStatusClass(report.status)}`}>
-                        {report.status}
-                      </span>
-                    </div>
-
-                    <h3>{report.title}</h3>
-
-                    <div className="dashboard-report-details">
-                      <span>{report.category}</span>
-                      <span>
-                        <MapPin size={13} />
-                        {report.location}
-                      </span>
-                      <span>
-                        <CalendarDays size={13} />
-                        {report.date}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="dashboard-report-action"
-                    aria-label={`Lihat detail ${report.title}`}
-                    title="Detail laporan akan tersedia pada tahap berikutnya"
+              {isLoading ? (
+                <p>Memuat laporan...</p>
+              ) : filteredReports.length === 0 ? (
+                <p>
+                  {searchQuery
+                    ? 'Tidak ada laporan yang cocok dengan pencarian.'
+                    : 'Kamu belum memiliki laporan.'}
+                </p>
+              ) : (
+                filteredReports.map((report) => (
+                  <article
+                    className="dashboard-report-card"
+                    key={report.id}
                   >
-                    <ArrowUpRight size={19} />
-                  </button>
-                </article>
-              ))}
+                    <div className="dashboard-report-symbol">
+                      <FileText size={21} />
+                    </div>
+
+                    <div className="dashboard-report-info">
+                      <div className="dashboard-report-meta">
+                        <span>#{report.id}</span>
+                        <span
+                          className={`dashboard-status ${getStatusClass(report.status)}`}
+                        >
+                          {getStatusLabel(report.status)}
+                        </span>
+                      </div>
+
+                      <h3>{report.title}</h3>
+
+                      <div className="dashboard-report-details">
+                        <span>
+                          {report.category_name ||
+                            categoryMap.get(String(report.category_id)) ||
+                            'Kategori'}
+                        </span>
+                        <span>
+                          <MapPin size={13} />
+                          {report.location}
+                        </span>
+                        <span>
+                          <CalendarDays size={13} />
+                          {formatDate(report.created_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Link
+                      to={`/warga/riwayat/${report.id}`}
+                      className="dashboard-report-action"
+                      aria-label={`Lihat detail ${report.title}`}
+                      title="Lihat detail laporan"
+                    >
+                      <ArrowUpRight size={19} />
+                    </Link>
+                  </article>
+                ))
+              )}
             </div>
           </section>
 
-          {/* Informasi tambahan untuk mengajak warga aktif melapor. */}
           <section className="dashboard-bottom-banner">
             <div className="dashboard-banner-icon">
               <Leaf size={28} />
@@ -339,7 +421,8 @@ function DashboardWarga() {
             <div>
               <h2>Perubahan dimulai dari kepedulianmu.</h2>
               <p>
-                Menemukan masalah di lingkungan sekitar? Jangan ragu untuk melaporkannya.
+                Menemukan masalah di lingkungan sekitar? Jangan ragu untuk
+                melaporkannya.
               </p>
             </div>
             <Link to="/warga/laporan/buat">

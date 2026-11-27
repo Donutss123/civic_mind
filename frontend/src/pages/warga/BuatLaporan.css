@@ -1,0 +1,519 @@
+
+/* Halaman utama */
+.create-report-page {
+  min-height: 100vh;
+  padding: 32px 24px 48px;
+  background:
+    radial-gradient(circle at 8% 8%, #d9f3e5, transparent 30%),
+    radial-gradient(circle at 95% 90%, #e1f5e8, transparent 28%),
+    #f1f7f3;
+  color: #173d2e;
+}
+
+/* Kontainer aplikasi */
+.create-report-app {
+  width: 100%;
+  max-width: 920px;
+  min-height: calc(100vh - 80px);
+  margin: 0 auto;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e1eee5;
+  border-radius: 20px;
+  box-shadow: 0 14px 45px rgba(6, 78, 59, 0.09);
+  padding-bottom: 72px;
+}
+
+/* Header */
+.create-report-header {
+  min-height: 70px;
+  padding: 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border-bottom: 1px solid #edf2ee;
+}
+
+.create-report-brand,
+.create-report-back {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+}
+
+.create-report-brand {
+  color: #075c3e;
+  font-size: 21px;
+}
+
+.create-report-brand svg {
+  color: #07834f;
+}
+
+.create-report-back {
+  color: #63766b;
+  font-size: 13px;
+  font-weight: 650;
+  transition: color 0.2s ease;
+}
+
+.create-report-back:hover {
+  color: #07834f;
+}
+
+/* Banner judul */
+.create-report-banner {
+  min-height: 145px;
+  padding: 28px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(115deg, #075c3e, #078b60);
+  color: #ffffff;
+}
+
+.create-report-banner span {
+  color: #c9f5db;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.create-report-banner h1 {
+  margin: 8px 0 6px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+
+.create-report-banner p {
+  margin: 0;
+  color: #e0f5e8;
+  font-size: 13px;
+}
+
+.create-report-banner-icon {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Form utama */
+.create-report-form {
+  padding: 34px 48px 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px 28px;
+}
+
+/* Judul dan deskripsi mengambil lebar penuh */
+.create-report-form > .report-field:nth-child(1),
+.create-report-form > .report-field:nth-child(2),
+.create-report-form > .report-field:nth-child(5),
+.create-report-form > .report-form-message,
+.create-report-form > .report-submit-button {
+  grid-column: 1 / -1;
+}
+
+.report-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.report-field > label {
+  color: #294a39;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.report-field input,
+.report-field textarea {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid #dce9e0;
+  border-radius: 10px;
+  outline: none;
+  background: #fbfdfb;
+  color: #243d30;
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.report-field input::placeholder,
+.report-field textarea::placeholder {
+  color: #9aa99f;
+}
+
+.report-field input:focus,
+.report-field textarea:focus {
+  border-color: #07834f;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(7, 131, 79, 0.1);
+}
+
+.report-field textarea {
+  min-height: 115px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+/* Kategori */
+.report-category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.report-category-chip {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #d5e6da;
+  border-radius: 22px;
+  background: #ffffff;
+  color: #5c7164;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.report-category-chip:hover {
+  border-color: #07834f;
+  color: #07834f;
+}
+
+.report-category-chip.active {
+  border-color: #07834f;
+  background: #07834f;
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(7, 131, 79, 0.16);
+}
+
+/* Upload foto */
+.report-upload-area {
+  min-height: 125px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed #a8d6b9;
+  border-radius: 11px;
+  background: #f3faf5;
+  color: #07834f;
+  cursor: pointer;
+  text-align: center;
+  transition: 0.2s ease;
+}
+
+.report-upload-area:hover {
+  border-color: #07834f;
+  background: #e8f7ed;
+}
+
+.report-upload-area strong {
+  color: #176442;
+  font-size: 12px;
+}
+
+.report-upload-area span {
+  color: #84958a;
+  font-size: 11px;
+}
+
+/* Preview foto */
+.report-photo-preview {
+  position: relative;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e1eee5;
+  border-radius: 10px;
+  background: #f8fcf9;
+  color: #52675b;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.report-photo-preview img {
+  width: 68px;
+  height: 58px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.report-photo-preview button {
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: #dc5656;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+/* Lokasi */
+.report-input-icon {
+  position: relative;
+}
+
+.report-input-icon > svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #07834f;
+}
+
+.report-input-icon input {
+  padding-left: 42px;
+}
+
+.report-location-note {
+  color: #8b9a90;
+  font-size: 11px;
+}
+
+/* Pesan validasi */
+.report-form-message {
+  padding: 13px 15px;
+  border: 1px solid #c8ead5;
+  border-radius: 10px;
+  background: #effaf3;
+  color: #176442;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Tombol kirim */
+.report-submit-button {
+  min-height: 49px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: none;
+  border-radius: 10px;
+  background: #07834f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(7, 131, 79, 0.17);
+  transition: 0.2s ease;
+}
+
+.report-submit-button:hover {
+  background: #056b45;
+  transform: translateY(-1px);
+}
+
+/* Navigasi bawah */
+.report-bottom-nav {
+  position: sticky;
+  bottom: 0;
+  min-height: 68px;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 6vw, 65px);
+  border-top: 1px solid #e7eee9;
+  background: rgba(255, 255, 255, 0.97);
+}
+
+.report-bottom-nav a,
+.report-bottom-nav .coming-soon {
+  min-width: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #829087;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.report-bottom-nav a.active {
+  color: #07834f;
+}
+
+.report-bottom-nav .coming-soon {
+  opacity: 0.65;
+}
+
+/* Tablet */
+@media (max-width: 760px) {
+  .create-report-page {
+    padding: 18px 12px 30px;
+  }
+
+  .create-report-app {
+    max-width: 620px;
+  }
+
+  .create-report-header {
+    padding: 0 24px;
+  }
+
+  .create-report-banner {
+    padding: 25px 28px;
+  }
+
+  .create-report-form {
+    padding: 28px 26px 32px;
+    gap: 21px;
+  }
+
+  .report-bottom-nav {
+    gap: 28px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .create-report-page {
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .create-report-app {
+    max-width: none;
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .create-report-header {
+    min-height: 62px;
+    padding: 0 18px;
+  }
+
+  .create-report-brand {
+    font-size: 18px;
+  }
+
+  .create-report-back {
+    font-size: 12px;
+  }
+
+  .create-report-banner {
+    min-height: 112px;
+    padding: 19px 20px;
+  }
+
+  .create-report-banner h1 {
+    font-size: 23px;
+  }
+
+  .create-report-banner p {
+    font-size: 11px;
+  }
+
+  .create-report-banner-icon {
+    width: 47px;
+    height: 47px;
+    border-radius: 14px;
+  }
+
+  .create-report-form {
+    padding: 22px 20px 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .report-field > label {
+    font-size: 12px;
+  }
+
+  .report-field input,
+  .report-field textarea {
+    padding: 12px 13px;
+    font-size: 12px;
+  }
+
+  .report-field textarea {
+    min-height: 90px;
+  }
+
+  .report-category-chip {
+    min-height: 33px;
+    padding: 0 13px;
+    font-size: 11px;
+  }
+
+  .report-upload-area {
+    min-height: 100px;
+  }
+
+  .report-bottom-nav {
+    position: fixed;
+    z-index: 10;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 65px;
+    padding: 7px 5px;
+    justify-content: space-around;
+    gap: 0;
+    border-top: 1px solid #e7eee9;
+    box-shadow: 0 -4px 15px rgba(6, 78, 59, 0.05);
+  }
+
+  .report-bottom-nav a,
+  .report-bottom-nav .coming-soon {
+    min-width: 48px;
+    font-size: 9px;
+  }
+}
+
+/* Ponsel kecil */
+@media (max-width: 380px) {
+  .create-report-header {
+    padding: 0 14px;
+  }
+
+  .create-report-brand {
+    font-size: 16px;
+  }
+
+  .create-report-back {
+    font-size: 11px;
+  }
+
+  .create-report-form {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .report-category-list {
+    gap: 6px;
+  }
+
+  .report-category-chip {
+    padding: 0 11px;
+  }
+}

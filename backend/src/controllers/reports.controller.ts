@@ -1,3 +1,4 @@
+
 import { Request, Response } from "express";
 import { z } from "zod";
 import { pool } from "../config/database";
@@ -11,6 +12,21 @@ const createReportSchema = z.object({
   photo_url: z.string().url().optional().or(z.literal(""))
 });
 
+const reportStatusSchema = z.object({
+  status: z.enum([
+    "TERVERIFIKASI",
+    "DITOLAK",
+    "DITANGANI",
+    "SELESAI"
+  ]),
+  rejection_reason: z.string().trim().min(5).optional()
+});
+
+const assignReportSchema = z.object({
+  assigned_to: z.number().int().positive()
+});
+
+// Membuat laporan baru dari warga yang sedang login.
 export async function createReport(req: Request, res: Response) {
   try {
     const authenticatedReq = req as AuthenticatedRequest;
@@ -19,6 +35,13 @@ export async function createReport(req: Request, res: Response) {
       return res.status(401).json({
         success: false,
         message: "Tidak terautentikasi"
+      });
+    }
+
+    if (authenticatedReq.user.role !== "warga") {
+      return res.status(403).json({
+        success: false,
+        message: "Hanya warga yang dapat membuat laporan"
       });
     }
 
@@ -42,8 +65,8 @@ export async function createReport(req: Request, res: Response) {
 
     const result = await pool.query(
       `INSERT INTO public.reports
-        (user_id, category_id, title, description, location, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (user_id, category_id, title, description, location, photo_url, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'BARU')
        RETURNING *`,
       [
         authenticatedReq.user.id,
@@ -77,6 +100,7 @@ export async function createReport(req: Request, res: Response) {
   }
 }
 
+// Mengambil laporan sesuai hak akses pengguna.
 export async function getReports(req: Request, res: Response) {
   try {
     const authenticatedReq = req as AuthenticatedRequest;
@@ -92,18 +116,34 @@ export async function getReports(req: Request, res: Response) {
 
     if (authenticatedReq.user.role === "warga") {
       result = await pool.query(
-        `SELECT *
-         FROM public.reports
-         WHERE user_id = $1
-         ORDER BY created_at DESC`,
+        `SELECT r.*, c.name AS category_name
+         FROM public.reports r
+         LEFT JOIN public.categories c ON c.id = r.category_id
+         WHERE r.user_id = $1
+         ORDER BY r.created_at DESC`,
         [authenticatedReq.user.id]
       );
-    } else {
+    } else if (authenticatedReq.user.role === "petugas") {
       result = await pool.query(
-        `SELECT *
-         FROM public.reports
-         ORDER BY created_at DESC`
+        `SELECT r.*, c.name AS category_name
+         FROM public.reports r
+         LEFT JOIN public.categories c ON c.id = r.category_id
+         WHERE r.assigned_to = $1
+         ORDER BY r.created_at DESC`,
+        [authenticatedReq.user.id]
       );
+    } else if (authenticatedReq.user.role === "admin") {
+      result = await pool.query(
+        `SELECT r.*, c.name AS category_name
+         FROM public.reports r
+         LEFT JOIN public.categories c ON c.id = r.category_id
+         ORDER BY r.created_at DESC`
+      );
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Tidak memiliki akses"
+      });
     }
 
     return res.status(200).json({
@@ -121,6 +161,7 @@ export async function getReports(req: Request, res: Response) {
   }
 }
 
+// Mengambil detail laporan sesuai hak akses pengguna.
 export async function getReportById(req: Request, res: Response) {
   try {
     const authenticatedReq = req as AuthenticatedRequest;
@@ -151,7 +192,15 @@ export async function getReportById(req: Request, res: Response) {
          WHERE r.id = $1 AND r.user_id = $2`,
         [reportId, authenticatedReq.user.id]
       );
-    } else {
+    } else if (authenticatedReq.user.role === "petugas") {
+      result = await pool.query(
+        `SELECT r.*, c.name AS category_name
+         FROM public.reports r
+         LEFT JOIN public.categories c ON c.id = r.category_id
+         WHERE r.id = $1 AND r.assigned_to = $2`,
+        [reportId, authenticatedReq.user.id]
+      );
+    } else if (authenticatedReq.user.role === "admin") {
       result = await pool.query(
         `SELECT r.*, c.name AS category_name
          FROM public.reports r
@@ -159,6 +208,11 @@ export async function getReportById(req: Request, res: Response) {
          WHERE r.id = $1`,
         [reportId]
       );
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Tidak memiliki akses"
+      });
     }
 
     if (result.rows.length === 0) {
@@ -183,6 +237,7 @@ export async function getReportById(req: Request, res: Response) {
   }
 }
 
+// Memverifikasi, menolak, atau memperbarui progres laporan.
 export async function updateReportStatus(req: Request, res: Response) {
   try {
     const authenticatedReq = req as AuthenticatedRequest;
@@ -203,38 +258,110 @@ export async function updateReportStatus(req: Request, res: Response) {
       });
     }
 
-    const statusSchema = z.object({
-      status: z.enum([
-        "menunggu_verifikasi",
-        "diproses",
-        "selesai",
-        "ditolak"
-      ])
-    });
-
-    const validation = statusSchema.safeParse(req.body);
+    const validation = reportStatusSchema.safeParse(req.body);
 
     if (!validation.success) {
       return res.status(400).json({
         success: false,
-        message: "Status laporan tidak valid",
+        message: "Data perubahan status tidak valid",
         errors: validation.error.flatten()
       });
     }
 
-    const result = await pool.query(
-      `UPDATE public.reports
-       SET status = $1,
-           updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      [validation.data.status, reportId]
-    );
+    const { status, rejection_reason } = validation.data;
+    let result;
+
+    if (authenticatedReq.user.role === "admin") {
+      if (status !== "TERVERIFIKASI" && status !== "DITOLAK") {
+        return res.status(403).json({
+          success: false,
+          message: "Admin hanya dapat memverifikasi atau menolak laporan"
+        });
+      }
+
+      if (status === "DITOLAK" && !rejection_reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Alasan penolakan wajib diisi"
+        });
+      }
+
+      if (status === "TERVERIFIKASI" && rejection_reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Alasan penolakan tidak diperlukan untuk verifikasi"
+        });
+      }
+
+      if (status === "TERVERIFIKASI") {
+        result = await pool.query(
+          `UPDATE public.reports
+           SET status = 'TERVERIFIKASI',
+               verified_by = $1,
+               verified_at = NOW(),
+               rejection_reason = NULL,
+               updated_at = NOW()
+           WHERE id = $2 AND status = 'BARU'
+           RETURNING *`,
+          [authenticatedReq.user.id, reportId]
+        );
+      } else {
+        result = await pool.query(
+          `UPDATE public.reports
+           SET status = 'DITOLAK',
+               rejection_reason = $1,
+               verified_by = $2,
+               verified_at = NOW(),
+               updated_at = NOW()
+           WHERE id = $3 AND status = 'BARU'
+           RETURNING *`,
+          [rejection_reason, authenticatedReq.user.id, reportId]
+        );
+      }
+    } else if (authenticatedReq.user.role === "petugas") {
+      if (status !== "DITANGANI" && status !== "SELESAI") {
+        return res.status(403).json({
+          success: false,
+          message: "Petugas hanya dapat mengubah progres penanganan"
+        });
+      }
+
+      if (rejection_reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Petugas tidak dapat mengisi alasan penolakan"
+        });
+      }
+
+      const previousStatus =
+        status === "DITANGANI" ? "DITUGASKAN" : "DITANGANI";
+
+      result = await pool.query(
+        `UPDATE public.reports
+         SET status = $1,
+             updated_at = NOW()
+         WHERE id = $2
+           AND assigned_to = $3
+           AND status = $4
+         RETURNING *`,
+        [
+          status,
+          reportId,
+          authenticatedReq.user.id,
+          previousStatus
+        ]
+      );
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Tidak memiliki akses untuk mengubah status laporan"
+      });
+    }
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      return res.status(409).json({
         success: false,
-        message: "Laporan tidak ditemukan"
+        message: "Laporan tidak ditemukan atau status sebelumnya tidak sesuai alur"
       });
     }
 
@@ -253,89 +380,90 @@ export async function updateReportStatus(req: Request, res: Response) {
   }
 }
 
-export const assignReport = async (req: AuthenticatedRequest, res: Response) => {
+// Menugaskan laporan terverifikasi kepada petugas oleh admin.
+export const assignReport = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Tidak terautentikasi"
+      });
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Hanya admin yang dapat menugaskan laporan"
+      });
+    }
+
     const reportId = Number(req.params.id);
 
     if (!Number.isInteger(reportId) || reportId <= 0) {
       return res.status(400).json({
         success: false,
-        message: "ID laporan tidak valid",
+        message: "ID laporan tidak valid"
       });
     }
 
-    const schema = z.object({
-      assigned_to: z.number().int().positive(),
-    });
-
-    const parsed = schema.safeParse(req.body);
+    const parsed = assignReportSchema.safeParse(req.body);
 
     if (!parsed.success) {
       return res.status(400).json({
         success: false,
         message: "Data penugasan tidak valid",
-        errors: parsed.error.flatten(),
+        errors: parsed.error.flatten()
       });
     }
 
     const { assigned_to } = parsed.data;
 
-    // Pastikan user yang ditugaskan adalah petugas
     const officerResult = await pool.query(
-      `SELECT id, name, role
+      `SELECT id, name
        FROM public.users
-       WHERE id = $1`,
+       WHERE id = $1 AND role = 'petugas'`,
       [assigned_to]
     );
 
     if (officerResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Petugas tidak ditemukan",
+        message: "Petugas tidak ditemukan"
       });
     }
 
-    if (officerResult.rows[0].role !== "petugas") {
-      return res.status(400).json({
-        success: false,
-        message: "User yang ditugaskan harus memiliki role petugas",
-      });
-    }
-
-    // Pastikan laporan tersedia
-    const reportResult = await pool.query(
-      `SELECT id FROM public.reports WHERE id = $1`,
-      [reportId]
-    );
-
-    if (reportResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Laporan tidak ditemukan",
-      });
-    }
-
-    // Assign petugas ke laporan
     const result = await pool.query(
       `UPDATE public.reports
        SET assigned_to = $1,
+           status = 'DITUGASKAN',
            updated_at = NOW()
        WHERE id = $2
+         AND status = 'TERVERIFIKASI'
        RETURNING *`,
       [assigned_to, reportId]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Laporan tidak ditemukan atau belum terverifikasi"
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Petugas berhasil ditugaskan",
-      data: result.rows[0],
+      data: result.rows[0]
     });
   } catch (error) {
-    console.error("Assign report error:", error);
+    console.error("ASSIGN REPORT ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Terjadi kesalahan server",
+      message: "Terjadi kesalahan server"
     });
   }
 };
