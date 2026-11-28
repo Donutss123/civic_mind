@@ -13,6 +13,8 @@ import {
   Search,
   XCircle,
   Leaf,
+  ShieldCheck,
+  UserCheck,
 } from 'lucide-react'
 import {
   getReports,
@@ -24,6 +26,8 @@ import './RiwayatLaporan.css'
 
 type ReportStatus =
   | 'BARU'
+  | 'TERVERIFIKASI'
+  | 'DITUGASKAN'
   | 'DITANGANI'
   | 'SELESAI'
   | 'DITOLAK'
@@ -37,29 +41,49 @@ interface HistoryReport {
   location: string
   date: string
   status: ReportStatus
+  rejection_reason?: string | null
 }
 
 const filters: FilterStatus[] = [
   'SEMUA',
   'BARU',
+  'TERVERIFIKASI',
+  'DITUGASKAN',
   'DITANGANI',
   'SELESAI',
   'DITOLAK',
 ]
 
-// Mengubah status backend menjadi label frontend.
+// Mengubah status backend menjadi status yang digunakan frontend.
 function mapReportStatus(status: string): ReportStatus {
   switch (status) {
-    case 'menunggu_verifikasi':
-      return 'BARU'
-    case 'diproses':
-      return 'DITANGANI'
-    case 'selesai':
-      return 'SELESAI'
-    case 'ditolak':
-      return 'DITOLAK'
+    case 'BARU':
+    case 'TERVERIFIKASI':
+    case 'DITUGASKAN':
+    case 'DITANGANI':
+    case 'SELESAI':
+    case 'DITOLAK':
+      return status
     default:
       return 'BARU'
+  }
+}
+
+// Mengubah kode status menjadi label yang mudah dipahami warga.
+function getStatusLabel(status: ReportStatus): string {
+  switch (status) {
+    case 'BARU':
+      return 'Menunggu Verifikasi'
+    case 'TERVERIFIKASI':
+      return 'Terverifikasi'
+    case 'DITUGASKAN':
+      return 'Menunggu Petugas'
+    case 'DITANGANI':
+      return 'Sedang Ditangani'
+    case 'SELESAI':
+      return 'Selesai'
+    case 'DITOLAK':
+      return 'Ditolak'
   }
 }
 
@@ -68,6 +92,10 @@ function getStatusClass(status: ReportStatus) {
   switch (status) {
     case 'BARU':
       return 'history-status-new'
+    case 'TERVERIFIKASI':
+      return 'history-status-verified'
+    case 'DITUGASKAN':
+      return 'history-status-assigned'
     case 'DITANGANI':
       return 'history-status-progress'
     case 'SELESAI':
@@ -82,6 +110,10 @@ function getStatusIcon(status: ReportStatus) {
   switch (status) {
     case 'BARU':
       return <Clock3 size={15} />
+    case 'TERVERIFIKASI':
+      return <ShieldCheck size={15} />
+    case 'DITUGASKAN':
+      return <UserCheck size={15} />
     case 'DITANGANI':
       return <Clock3 size={15} />
     case 'SELESAI':
@@ -139,6 +171,7 @@ function RiwayatLaporan() {
             location: report.location,
             date: formatDate(report.created_at),
             status: mapReportStatus(report.status),
+            rejection_reason: report.rejection_reason,
           }),
         )
 
@@ -176,7 +209,8 @@ function RiwayatLaporan() {
       report.title.toLowerCase().includes(searchText) ||
       report.id.toLowerCase().includes(searchText) ||
       report.category.toLowerCase().includes(searchText) ||
-      report.location.toLowerCase().includes(searchText)
+      report.location.toLowerCase().includes(searchText) ||
+      getStatusLabel(report.status).toLowerCase().includes(searchText)
 
     return matchesFilter && matchesSearch
   })
@@ -257,7 +291,9 @@ function RiwayatLaporan() {
                 aria-pressed={activeFilter === filter}
                 onClick={() => setActiveFilter(filter)}
               >
-                {filter === 'SEMUA' ? 'Semua' : filter}
+                {filter === 'SEMUA'
+                  ? 'Semua'
+                  : getStatusLabel(filter)}
               </button>
             ))}
           </div>
@@ -306,7 +342,7 @@ function RiwayatLaporan() {
                         className={`history-status ${getStatusClass(report.status)}`}
                       >
                         {getStatusIcon(report.status)}
-                        {report.status}
+                        {getStatusLabel(report.status)}
                       </span>
                     </div>
 
@@ -323,6 +359,15 @@ function RiwayatLaporan() {
                         {report.date}
                       </span>
                     </div>
+
+                    {/* Menampilkan alasan jika laporan ditolak admin. */}
+                    {report.status === 'DITOLAK' &&
+                      report.rejection_reason && (
+                        <div className="history-rejection-reason">
+                          <strong>Alasan penolakan:</strong>
+                          <p>{report.rejection_reason}</p>
+                        </div>
+                      )}
                   </div>
 
                   <div className="history-report-arrow">

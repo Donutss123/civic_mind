@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import {
   createReport,
@@ -10,19 +11,26 @@ import {
   authenticateToken,
   authorizeRole,
 } from "../middleware/auth.middleware";
+import { uploadPhoto } from "../middleware/upload.middleware";
 
 const router = Router();
 
-// Get seluruh laporan (akses berdasarkan role di controller)
+// Mengambil laporan sesuai hak akses pengguna.
 router.get("/", authenticateToken, getReports);
 
-// Create laporan (khusus warga)
-router.post("/", authenticateToken, authorizeRole("warga"), createReport);
+// Membuat laporan warga sekaligus menerima satu file foto.
+router.post(
+  "/",
+  authenticateToken,
+  authorizeRole("warga"),
+  uploadPhoto.single("photo"),
+  createReport
+);
 
-// Get detail laporan
+// Mengambil detail laporan.
 router.get("/:id", authenticateToken, getReportById);
 
-// Update status laporan (khusus petugas dan admin)
+// Memperbarui status laporan.
 router.patch(
   "/:id/status",
   authenticateToken,
@@ -30,7 +38,7 @@ router.patch(
   updateReportStatus
 );
 
-// Assign petugas ke laporan (khusus admin)
+// Menugaskan laporan kepada petugas.
 router.patch(
   "/:id/assign",
   authenticateToken,

@@ -797,3 +797,24 @@
     display: none;
   }
 }
+
+/* Menyamakan nama class alasan penolakan dengan komponen TSX. */
+.history-rejection-reason {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border-left: 3px solid #dc5656;
+  border-radius: 0 8px 8px 0;
+  background: #fff5f5;
+}
+
+.history-rejection-reason strong {
+  color: #a83232;
+  font-size: 10px;
+}
+
+.history-rejection-reason p {
+  margin: 5px 0 0;
+  color: #805454;
+  font-size: 11px;
+  line-height: 1.5;
+}

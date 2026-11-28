@@ -1,9 +1,9 @@
-
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
 import reportsRoutes from "./routes/reports.routes";
 import categoriesRoutes from "./routes/categories.routes";
+import usersRoutes from "./routes/users.routes";
 
 const app = express();
 
@@ -16,6 +16,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/categories", categoriesRoutes);
+app.use("/api/users", usersRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({

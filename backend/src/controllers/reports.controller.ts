@@ -3,13 +3,17 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { pool } from "../config/database";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import {
+  uploadReportPhoto,
+  deleteReportPhoto
+} from "../services/photo.service";
+import { getReportPhotoUrl } from "../services/photo.service";
 
 const createReportSchema = z.object({
-  category_id: z.number().int().positive(),
+  category_id: z.coerce.number().int().positive(),
   title: z.string().trim().min(3).max(150),
   description: z.string().trim().min(10),
-  location: z.string().trim().min(3),
-  photo_url: z.string().url().optional().or(z.literal(""))
+  location: z.string().trim().min(3)
 });
 
 const reportStatusSchema = z.object({
@@ -26,8 +30,11 @@ const assignReportSchema = z.object({
   assigned_to: z.number().int().positive()
 });
 
-// Membuat laporan baru dari warga yang sedang login.
+
+ // Membuat laporan baru dari warga yang sedang login.
 export async function createReport(req: Request, res: Response) {
+  let uploadedPhotoPath: string | null = null;
+
   try {
     const authenticatedReq = req as AuthenticatedRequest;
 
@@ -45,6 +52,14 @@ export async function createReport(req: Request, res: Response) {
       });
     }
 
+    // Foto bukti wajib disertakan dalam laporan.
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Foto bukti laporan wajib diunggah"
+      });
+    }
+
     const validation = createReportSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -59,10 +74,13 @@ export async function createReport(req: Request, res: Response) {
       category_id,
       title,
       description,
-      location,
-      photo_url
+      location
     } = validation.data;
 
+    // Mengunggah foto ke Supabase Storage.
+    uploadedPhotoPath = await uploadReportPhoto(req.file);
+
+    // Menyimpan path foto dan data laporan ke database.
     const result = await pool.query(
       `INSERT INTO public.reports
         (user_id, category_id, title, description, location, photo_url, status)
@@ -74,7 +92,7 @@ export async function createReport(req: Request, res: Response) {
         title,
         description,
         location,
-        photo_url || null
+        uploadedPhotoPath
       ]
     );
 
@@ -84,6 +102,11 @@ export async function createReport(req: Request, res: Response) {
       data: result.rows[0]
     });
   } catch (error: any) {
+    // Menghapus foto dari Storage jika penyimpanan laporan gagal.
+    if (uploadedPhotoPath) {
+      await deleteReportPhoto(uploadedPhotoPath);
+    }
+
     if (error.code === "23503") {
       return res.status(400).json({
         success: false,
@@ -146,10 +169,20 @@ export async function getReports(req: Request, res: Response) {
       });
     }
 
+    // Membuat signed URL untuk setiap foto laporan.
+    const reportsWithPhotoUrls = await Promise.all(
+      result.rows.map(async (report: any) => ({
+        ...report,
+        photo_url: report.photo_url
+          ? await getReportPhotoUrl(report.photo_url)
+          : null
+      }))
+    );
+
     return res.status(200).json({
       success: true,
       message: "Data laporan berhasil diambil",
-      data: result.rows
+      data: reportsWithPhotoUrls
     });
   } catch (error) {
     console.error("GET REPORTS ERROR:", error);
@@ -222,11 +255,21 @@ export async function getReportById(req: Request, res: Response) {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Detail laporan berhasil diambil",
-      data: result.rows[0]
-    });
+   // Membuat signed URL untuk foto laporan.
+   const report = result.rows[0];
+     
+   const reportWithPhotoUrl = {
+     ...report,
+     photo_url: report.photo_url
+       ? await getReportPhotoUrl(report.photo_url)
+       : null
+   };
+   
+   return res.status(200).json({
+     success: true,
+     message: "Detail laporan berhasil diambil",
+     data: reportWithPhotoUrl
+   });
   } catch (error) {
     console.error("GET REPORT BY ID ERROR:", error);
 

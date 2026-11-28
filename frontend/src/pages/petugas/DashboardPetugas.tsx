@@ -29,13 +29,17 @@ import './DashboardPetugas.css'
 // Mengubah status backend menjadi label dashboard.
 function getStatusLabel(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
-      return 'MENUNGGU'
-    case 'diproses':
-      return 'DIPROSES'
-    case 'selesai':
+    case 'BARU':
+      return 'BARU'
+    case 'TERVERIFIKASI':
+      return 'TERVERIFIKASI'
+    case 'DITUGASKAN':
+      return 'DITUGASKAN'
+    case 'DITANGANI':
+      return 'DITANGANI'
+    case 'SELESAI':
       return 'SELESAI'
-    case 'ditolak':
+    case 'DITOLAK':
       return 'DITOLAK'
     default:
       return status.toUpperCase()
@@ -45,14 +49,16 @@ function getStatusLabel(status: string) {
 // Mengubah status menjadi class CSS.
 function getStatusClass(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
+    case 'BARU':
+    case 'DITOLAK':
       return 'admin-status-new'
-    case 'diproses':
+    case 'TERVERIFIKASI':
+    case 'DITUGASKAN':
       return 'admin-status-progress'
-    case 'selesai':
+    case 'DITANGANI':
+      return 'admin-status-progress'
+    case 'SELESAI':
       return 'admin-status-done'
-    case 'ditolak':
-      return 'admin-status-new'
     default:
       return 'admin-status-new'
   }
@@ -142,15 +148,15 @@ function DashboardPetugas() {
   const totalReports = reports.length
 
   const waitingReports = reports.filter(
-    (report) => report.status === 'menunggu_verifikasi'
+    (report) => report.status === 'DITUGASKAN'
   ).length
 
   const processingReports = reports.filter(
-    (report) => report.status === 'diproses'
+    (report) => report.status === 'DITANGANI'
   ).length
 
   const completedReports = reports.filter(
-    (report) => report.status === 'selesai'
+    (report) => report.status === 'SELESAI'
   ).length
 
   // Mengurutkan laporan terbaru.
@@ -165,7 +171,7 @@ function DashboardPetugas() {
   // Memperbarui status laporan yang ditugaskan.
   const handleUpdateStatus = async (
     reportId: string,
-    status: 'diproses' | 'selesai'
+    status: 'DITANGANI' | 'SELESAI'
   ) => {
     try {
       setUpdatingId(reportId)
@@ -174,7 +180,11 @@ function DashboardPetugas() {
 
       await updateReportStatus(reportId, status)
 
-      setSuccessMessage('Status laporan berhasil diperbarui.')
+      setSuccessMessage(
+        status === 'DITANGANI'
+          ? 'Laporan berhasil mulai ditangani.'
+          : 'Laporan berhasil diselesaikan.'
+      )
 
       // Memuat ulang data agar sesuai dengan database.
       await fetchDashboardData()
@@ -424,13 +434,13 @@ function DashboardPetugas() {
                       </p>
 
                       <div className="petugas-actions">
-                        {report.status === 'menunggu_verifikasi' && (
+                        {report.status === 'DITUGASKAN' && (
                           <button
                             type="button"
                             className="petugas-action-button petugas-start"
                             disabled={updatingId === report.id}
                             onClick={() =>
-                              handleUpdateStatus(report.id, 'diproses')
+                              handleUpdateStatus(report.id, 'DITANGANI')
                             }
                           >
                             {updatingId === report.id
@@ -439,13 +449,13 @@ function DashboardPetugas() {
                           </button>
                         )}
 
-                        {report.status === 'diproses' && (
+                        {report.status === 'DITANGANI' && (
                           <button
                             type="button"
                             className="petugas-action-button petugas-finish"
                             disabled={updatingId === report.id}
                             onClick={() =>
-                              handleUpdateStatus(report.id, 'selesai')
+                              handleUpdateStatus(report.id, 'SELESAI')
                             }
                           >
                             {updatingId === report.id
@@ -454,16 +464,10 @@ function DashboardPetugas() {
                           </button>
                         )}
 
-                        {report.status === 'selesai' && (
+                        {report.status === 'SELESAI' && (
                           <span className="petugas-completed-label">
                             <CheckCircle2 size={15} />
                             Tugas selesai
-                          </span>
-                        )}
-
-                        {report.status === 'ditolak' && (
-                          <span className="petugas-completed-label">
-                            Laporan ditolak
                           </span>
                         )}
                       </div>

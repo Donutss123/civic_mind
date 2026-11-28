@@ -10,8 +10,10 @@ import {
   Leaf,
   MapPin,
   ShieldCheck,
+  UserCheck,
   Wrench,
   XCircle,
+  Image as ImageIcon,
 } from 'lucide-react'
 import {
   getReportById,
@@ -19,57 +21,80 @@ import {
 } from '../../services/report'
 import './DetailLaporan.css'
 
+type ReportStatus =
+  | 'BARU'
+  | 'TERVERIFIKASI'
+  | 'DITUGASKAN'
+  | 'DITANGANI'
+  | 'SELESAI'
+  | 'DITOLAK'
+
+// Urutan tahapan mengikuti alur laporan pada backend.
 const progressSteps = [
   {
-    status: 'menunggu_verifikasi',
+    status: 'BARU',
     title: 'Laporan diterima',
-    description: 'Laporan berhasil dikirim dan menunggu pemeriksaan.',
+    description: 'Laporan berhasil dikirim dan menunggu pemeriksaan admin.',
     icon: <FileText size={18} />,
   },
   {
-    status: 'diproses',
+    status: 'TERVERIFIKASI',
+    title: 'Laporan terverifikasi',
+    description: 'Laporan telah diperiksa dan dinyatakan valid oleh admin.',
+    icon: <ShieldCheck size={18} />,
+  },
+  {
+    status: 'DITUGASKAN',
+    title: 'Petugas ditugaskan',
+    description: 'Laporan telah diberikan kepada petugas untuk ditangani.',
+    icon: <UserCheck size={18} />,
+  },
+  {
+    status: 'DITANGANI',
     title: 'Laporan sedang ditangani',
-    description: 'Laporan sedang dalam proses penanganan.',
+    description: 'Petugas sedang melakukan penanganan laporan.',
     icon: <Wrench size={18} />,
   },
   {
-    status: 'selesai',
+    status: 'SELESAI',
     title: 'Laporan selesai',
     description: 'Penanganan laporan telah dinyatakan selesai.',
     icon: <CheckCircle2 size={18} />,
   },
 ]
 
-type ReportStatus =
-  | 'menunggu_verifikasi'
-  | 'diproses'
-  | 'selesai'
-  | 'ditolak'
-
-// Mengubah status backend menjadi label tampilan.
-function getStatusLabel(status: ReportStatus) {
+// Mengubah kode status menjadi label yang mudah dipahami warga.
+function getStatusLabel(status: ReportStatus): string {
   switch (status) {
-    case 'menunggu_verifikasi':
-      return 'BARU'
-    case 'diproses':
-      return 'DITANGANI'
-    case 'selesai':
-      return 'SELESAI'
-    case 'ditolak':
-      return 'DITOLAK'
+    case 'BARU':
+      return 'Menunggu Verifikasi'
+    case 'TERVERIFIKASI':
+      return 'Terverifikasi'
+    case 'DITUGASKAN':
+      return 'Menunggu Petugas'
+    case 'DITANGANI':
+      return 'Sedang Ditangani'
+    case 'SELESAI':
+      return 'Selesai'
+    case 'DITOLAK':
+      return 'Ditolak'
   }
 }
 
-// Mengambil class CSS berdasarkan status.
-function getStatusClass(status: ReportStatus) {
+// Mengambil class CSS berdasarkan status laporan.
+function getStatusClass(status: ReportStatus): string {
   switch (status) {
-    case 'menunggu_verifikasi':
+    case 'BARU':
       return 'detail-status-new'
-    case 'diproses':
+    case 'TERVERIFIKASI':
+      return 'detail-status-verified'
+    case 'DITUGASKAN':
+      return 'detail-status-assigned'
+    case 'DITANGANI':
       return 'detail-status-progress'
-    case 'selesai':
+    case 'SELESAI':
       return 'detail-status-done'
-    case 'ditolak':
+    case 'DITOLAK':
       return 'detail-status-rejected'
   }
 }
@@ -89,6 +114,7 @@ function DetailLaporan() {
   const [report, setReport] = useState<ReportData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [photoError, setPhotoError] = useState(false)
 
   // Mengambil detail laporan dari backend.
   useEffect(() => {
@@ -106,6 +132,7 @@ function DetailLaporan() {
 
         if (isMounted) {
           setReport(data)
+          setPhotoError(false)
         }
       } catch (error) {
         if (isMounted) {
@@ -160,8 +187,9 @@ function DetailLaporan() {
   }
 
   const status = report.status as ReportStatus
-  const isRejected = status === 'ditolak'
+  const isRejected = status === 'DITOLAK'
 
+  // Menentukan posisi laporan pada timeline.
   const currentStep = progressSteps.findIndex(
     (step) => step.status === status,
   )
@@ -202,6 +230,63 @@ function DetailLaporan() {
 
             <h2>{report.title}</h2>
 
+            {/* Menampilkan foto bukti laporan dari signed URL Supabase. */}
+            <div style={{ marginBottom: 22 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  marginBottom: 10,
+                  color: '#718078',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                <ImageIcon size={16} />
+                Foto Bukti Laporan
+              </div>
+
+              {report.photo_url && !photoError ? (
+                <img
+                  src={report.photo_url}
+                  alt={`Foto bukti laporan ${report.title}`}
+                  onError={() => setPhotoError(true)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    maxHeight: 360,
+                    objectFit: 'cover',
+                    borderRadius: 11,
+                    border: '1px solid #e7eee9',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    minHeight: 110,
+                    padding: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    border: '1px dashed #d5e3d9',
+                    borderRadius: 11,
+                    background: '#f7faf7',
+                    color: '#84938a',
+                    fontSize: 11,
+                    textAlign: 'center',
+                  }}
+                >
+                  <ImageIcon size={24} />
+                  {photoError
+                    ? 'Foto gagal dimuat. Silakan muat ulang halaman.'
+                    : 'Foto bukti tidak tersedia.'}
+                </div>
+              )}
+            </div>
+
             <div className="detail-information-grid">
               <div className="detail-information-item">
                 <span>Kategori</span>
@@ -230,16 +315,27 @@ function DetailLaporan() {
                 <span>Deskripsi</span>
                 <strong>{report.description}</strong>
               </div>
-            </div>
 
-            {report.assigned_to && (
-              <div className="detail-information-item">
-                <span>Petugas ditugaskan</span>
-                <strong>
-                  ID Petugas: {report.assigned_to}
-                </strong>
-              </div>
-            )}
+              {report.verified_at && (
+                <div className="detail-information-item">
+                  <span>Tanggal verifikasi</span>
+                  <strong>
+                    <ShieldCheck size={15} />
+                    {formatDate(report.verified_at)}
+                  </strong>
+                </div>
+              )}
+
+              {report.assigned_to && (
+                <div className="detail-information-item">
+                  <span>Petugas ditugaskan</span>
+                  <strong>
+                    <UserCheck size={15} />
+                    ID Petugas: {report.assigned_to}
+                  </strong>
+                </div>
+              )}
+            </div>
           </section>
 
           {isRejected ? (
@@ -251,8 +347,8 @@ function DetailLaporan() {
                 <span>STATUS LAPORAN</span>
                 <h2>Laporan ditolak</h2>
                 <p>
-                  Laporan ini telah ditolak oleh pengelola.
-                  Silakan hubungi pihak terkait untuk informasi lebih lanjut.
+                  {report.rejection_reason ||
+                    'Laporan ini telah ditolak oleh pengelola.'}
                 </p>
               </div>
             </section>

@@ -20,6 +20,12 @@
   },
   "homepage": "https://github.com/Donutss123/civic_mind#readme",
   "devDependencies": {
+    "@types/multer": "^2.3.0",
     "concurrently": "^10.0.7"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "multer": "^2.5.0",
+    "sharp": "^0.35.5"
   }
 }

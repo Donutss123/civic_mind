@@ -1,7 +1,12 @@
 
 import { Link, useNavigate } from 'react-router-dom'
 import { clearSession, getCurrentUser, type AuthUser } from '../services/auth'
-import { getReports, getCategories, type ReportData, type Category } from '../services/report'
+import {
+  getReports,
+  getCategories,
+  type ReportData,
+  type Category,
+} from '../services/report'
 import { useEffect, useMemo, useState } from 'react'
 import {
   LayoutDashboard,
@@ -19,20 +24,27 @@ import {
   CheckCircle2,
   ArrowUpRight,
   Leaf,
+  ShieldCheck,
+  UserCheck,
+  XCircle,
 } from 'lucide-react'
 
 import './DashboardWarga.css'
 
-// Mengubah status backend menjadi label yang ditampilkan.
+// Mengubah enam status backend menjadi label yang mudah dipahami warga.
 function getStatusLabel(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
-      return 'Menunggu'
-    case 'diproses':
-      return 'Diproses'
-    case 'selesai':
+    case 'BARU':
+      return 'Menunggu Verifikasi'
+    case 'TERVERIFIKASI':
+      return 'Terverifikasi'
+    case 'DITUGASKAN':
+      return 'Menunggu Petugas'
+    case 'DITANGANI':
+      return 'Sedang Ditangani'
+    case 'SELESAI':
       return 'Selesai'
-    case 'ditolak':
+    case 'DITOLAK':
       return 'Ditolak'
     default:
       return status
@@ -42,20 +54,24 @@ function getStatusLabel(status: string) {
 // Mengubah status menjadi class CSS yang sesuai.
 function getStatusClass(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
+    case 'BARU':
       return 'status-waiting'
-    case 'diproses':
+    case 'TERVERIFIKASI':
+      return 'status-verified'
+    case 'DITUGASKAN':
+      return 'status-assigned'
+    case 'DITANGANI':
       return 'status-progress'
-    case 'selesai':
+    case 'SELESAI':
       return 'status-done'
-    case 'ditolak':
-      return 'status-waiting'
+    case 'DITOLAK':
+      return 'status-rejected'
     default:
       return ''
   }
 }
 
-// Mengubah tanggal database menjadi format tanggal Indonesia.
+// Mengubah tanggal database menjadi format Indonesia.
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('id-ID', {
     day: 'numeric',
@@ -119,6 +135,7 @@ function DashboardWarga() {
         setCategories(categoryData)
       } catch (error) {
         console.error('Gagal mengambil data dashboard:', error)
+
         setErrorMessage(
           error instanceof Error
             ? error.message
@@ -132,16 +149,22 @@ function DashboardWarga() {
     fetchDashboardData()
   }, [])
 
-  // Menghitung jumlah laporan berdasarkan status dari database.
+  // Menghitung statistik berdasarkan enam status resmi CivicMind.
   const totalReports = reports.length
+
   const waitingReports = reports.filter(
-    (report) => report.status === 'menunggu_verifikasi'
+    (report) => report.status === 'BARU'
   ).length
+
   const processingReports = reports.filter(
-    (report) => report.status === 'diproses'
+    (report) =>
+      report.status === 'TERVERIFIKASI' ||
+      report.status === 'DITUGASKAN' ||
+      report.status === 'DITANGANI'
   ).length
+
   const completedReports = reports.filter(
-    (report) => report.status === 'selesai'
+    (report) => report.status === 'SELESAI'
   ).length
 
   // Membuat daftar kategori agar ID kategori bisa ditampilkan sebagai nama.
@@ -171,11 +194,12 @@ function DashboardWarga() {
           report.title.toLowerCase().includes(keyword) ||
           report.location.toLowerCase().includes(keyword) ||
           categoryName.toLowerCase().includes(keyword) ||
-          String(report.id).toLowerCase().includes(keyword)
+          String(report.id).toLowerCase().includes(keyword) ||
+          getStatusLabel(report.status).toLowerCase().includes(keyword)
         )
       })
       .slice(0, 5)
-  }, [reports, categories, categoryMap, searchQuery])
+  }, [reports, categoryMap, searchQuery])
 
   // Menghapus sesi pengguna dan kembali ke halaman login.
   const handleLogout = () => {
@@ -325,9 +349,9 @@ function DashboardWarga() {
               color="stat-orange"
             />
             <StatCard
-              title="Diproses"
+              title="Dalam Proses"
               value={isLoading ? 0 : processingReports}
-              description="Sedang ditangani"
+              description="Verifikasi hingga penanganan"
               icon={<Wrench size={21} />}
               color="stat-blue"
             />
@@ -398,6 +422,32 @@ function DashboardWarga() {
                           {formatDate(report.created_at)}
                         </span>
                       </div>
+
+                      {/* Alasan penolakan ditampilkan agar warga mengetahui hasil verifikasi. */}
+                      {report.status === 'DITOLAK' && report.rejection_reason && (
+                        <div className="dashboard-rejection-reason">
+                          <XCircle size={15} />
+                          <div>
+                            <strong>Alasan penolakan</strong>
+                            <p>{report.rejection_reason}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Menampilkan informasi tahap verifikasi dan penugasan. */}
+                      {report.status === 'TERVERIFIKASI' && (
+                        <div className="dashboard-report-note">
+                          <ShieldCheck size={15} />
+                          Laporan telah diverifikasi admin.
+                        </div>
+                      )}
+
+                      {report.status === 'DITUGASKAN' && (
+                        <div className="dashboard-report-note">
+                          <UserCheck size={15} />
+                          Laporan telah ditugaskan kepada petugas.
+                        </div>
+                      )}
                     </div>
 
                     <Link

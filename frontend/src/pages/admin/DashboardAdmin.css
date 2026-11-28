@@ -947,3 +947,332 @@
     display: none;
   }
 }
+
+
+/* ==================== ANTREAN TINDAKAN ADMIN ==================== */
+
+.admin-action-panel {
+  margin-bottom: 22px;
+}
+
+.admin-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 0 12px;
+  border: 1px solid #cbd5cf;
+  border-radius: 8px;
+  color: #47705a;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.admin-refresh-button:hover:not(:disabled) {
+  border-color: #07834f;
+  color: #07834f;
+  background: #effaf3;
+}
+
+.admin-refresh-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-action-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-action-card {
+  padding: 18px 0;
+  border-top: 1px solid #e8eee9;
+}
+
+.admin-action-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-action-controls {
+  margin: 16px 0 0 56px;
+}
+
+.admin-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.admin-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 37px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.admin-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-button-verify {
+  color: #ffffff;
+  background: #07834f;
+}
+
+.admin-button-verify:hover:not(:disabled) {
+  background: #066b41;
+}
+
+.admin-button-reject-outline {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+}
+
+.admin-button-reject-outline:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.admin-button-reject {
+  color: #ffffff;
+  background: #dc2626;
+}
+
+.admin-button-reject:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.admin-button-cancel {
+  border-color: #cbd5cf;
+  color: #60756a;
+  background: #ffffff;
+}
+
+.admin-button-cancel:hover:not(:disabled) {
+  background: #f1f7f3;
+}
+
+.admin-button-assign {
+  color: #ffffff;
+  background: #0e7490;
+}
+
+.admin-button-assign:hover:not(:disabled) {
+  background: #155e75;
+}
+
+/* Form alasan penolakan laporan. */
+.admin-rejection-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-width: 560px;
+  padding: 15px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fffafa;
+}
+
+.admin-rejection-form label {
+  color: #7f1d1d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-rejection-form textarea {
+  width: 100%;
+  min-height: 85px;
+  padding: 11px;
+  border: 1px solid #e5bcbc;
+  border-radius: 8px;
+  outline: none;
+  color: #244b3c;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.admin-rejection-form textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
+.admin-rejection-form small,
+.admin-assignment-hint {
+  color: #9a6b6b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Form pemilihan petugas untuk penugasan laporan. */
+.admin-assignment-form {
+  margin: 16px 0 0 56px;
+  padding: 14px;
+  border: 1px solid #cbd5cf;
+  border-radius: 10px;
+  background: #f8fcf9;
+}
+
+.admin-assignment-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #47705a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-assignment-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.admin-assignment-controls select {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cbd5cf;
+  border-radius: 8px;
+  outline: none;
+  color: #244b3c;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.admin-assignment-controls select:focus {
+  border-color: #07834f;
+  box-shadow: 0 0 0 3px rgba(7, 131, 79, 0.08);
+}
+
+.admin-assignment-hint {
+  display: block;
+  margin-top: 8px;
+}
+
+/* Pesan hasil proses admin. */
+.admin-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-feedback-error {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+}
+
+.admin-feedback-success {
+  border-color: #a7f3d0;
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.admin-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 15px;
+  color: #84938a;
+  font-size: 11px;
+  text-align: center;
+}
+
+.admin-empty-state svg {
+  color: #07834f;
+}
+
+.admin-empty-state strong {
+  color: #244b3c;
+  font-size: 13px;
+}
+
+/* Informasi alasan penolakan dan petugas pada laporan terbaru. */
+.admin-rejection-display,
+.admin-assigned-display {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 9px 0 0;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-rejection-display {
+  color: #b91c1c;
+}
+
+.admin-assigned-display {
+  color: #0e7490;
+}
+
+/* Penyesuaian antrean admin untuk layar tablet. */
+@media (max-width: 700px) {
+  .admin-action-card-top {
+    gap: 9px;
+  }
+
+  .admin-action-controls,
+  .admin-assignment-form {
+    margin-left: 0;
+  }
+
+  .admin-action-buttons {
+    gap: 7px;
+  }
+
+  .admin-action-button {
+    min-height: 35px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .admin-assignment-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-assignment-controls select,
+  .admin-assignment-controls .admin-action-button {
+    width: 100%;
+  }
+
+  .admin-refresh-button {
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .admin-action-card {
+    padding: 15px 0;
+  }
+}

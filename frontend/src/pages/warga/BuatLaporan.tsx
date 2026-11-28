@@ -66,7 +66,7 @@ function BuatLaporan() {
     }
   }, [])
 
-  // Membersihkan URL preview foto ketika halaman ditinggalkan.
+  // Membersihkan URL preview foto ketika preview berubah atau halaman ditinggalkan.
   useEffect(() => {
     return () => {
       if (preview) {
@@ -105,8 +105,8 @@ function BuatLaporan() {
 
     if (!file) return
 
-    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-      setMessage('Format foto harus JPG, JPEG, atau PNG.')
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setMessage('Format foto harus JPG atau PNG.')
       event.target.value = ''
       return
     }
@@ -128,7 +128,7 @@ function BuatLaporan() {
     setPreview('')
   }
 
-  // Memvalidasi dan mengirim laporan ke backend.
+  // Memvalidasi dan mengirim laporan beserta foto ke backend.
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -139,6 +139,11 @@ function BuatLaporan() {
       !form.description.trim()
     ) {
       setMessage('Semua kolom wajib diisi.')
+      return
+    }
+
+    if (!photo) {
+      setMessage('Foto bukti laporan wajib diunggah.')
       return
     }
 
@@ -166,6 +171,7 @@ function BuatLaporan() {
         title: form.title.trim(),
         description: form.description.trim(),
         location: form.location.trim(),
+        photo,
       })
 
       setMessage(
@@ -288,7 +294,7 @@ function BuatLaporan() {
             </label>
 
             <span className="report-location-note">
-              Preview foto tersedia. Pengiriman foto belum terintegrasi dengan backend.
+              Foto bukti wajib disertakan dan akan disimpan dengan aman.
             </span>
 
             {preview && (
@@ -333,7 +339,11 @@ function BuatLaporan() {
           <button
             type="submit"
             className="report-submit-button"
-            disabled={isSubmitting || categoriesLoading || categories.length === 0}
+            disabled={
+              isSubmitting ||
+              categoriesLoading ||
+              categories.length === 0
+            }
           >
             <Send size={17} />
             {isSubmitting ? 'Mengirim Laporan...' : 'Kirim Laporan'}

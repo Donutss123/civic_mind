@@ -18,13 +18,21 @@ import {
   CalendarDays,
   TrendingUp,
   Menu,
+  Check,
+  X,
+  UserRound,
+  RefreshCw,
 } from 'lucide-react'
 import { clearSession, getCurrentUser, type AuthUser } from '../../services/auth'
 import {
   getReports,
   getCategories,
+  getPetugas,
+  updateReportStatus,
+  assignReport,
   type ReportData,
   type Category,
+  type Petugas,
 } from '../../services/report'
 import './DashboardAdmin.css'
 
@@ -37,33 +45,40 @@ const categoryColors = [
   '#db5275',
 ]
 
-// Mengubah status backend menjadi label dashboard.
+// Mengubah status backend menjadi label yang mudah dibaca.
 function getStatusLabel(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
+    case 'BARU':
       return 'BARU'
-    case 'diproses':
-      return 'DITANGANI'
-    case 'selesai':
-      return 'SELESAI'
-    case 'ditolak':
+    case 'DITOLAK':
       return 'DITOLAK'
+    case 'TERVERIFIKASI':
+      return 'TERVERIFIKASI'
+    case 'DITUGASKAN':
+      return 'DITUGASKAN'
+    case 'DITANGANI':
+      return 'DITANGANI'
+    case 'SELESAI':
+      return 'SELESAI'
     default:
-      return status.toUpperCase()
+      return status
   }
 }
 
-// Mengubah status menjadi class CSS.
+// Menentukan class CSS berdasarkan status laporan.
 function getStatusClass(status: string) {
   switch (status) {
-    case 'menunggu_verifikasi':
+    case 'BARU':
+    case 'DITOLAK':
       return 'admin-status-new'
-    case 'diproses':
+    case 'TERVERIFIKASI':
+      return 'admin-status-verified'
+    case 'DITUGASKAN':
+      return 'admin-status-assigned'
+    case 'DITANGANI':
       return 'admin-status-progress'
-    case 'selesai':
+    case 'SELESAI':
       return 'admin-status-done'
-    case 'ditolak':
-      return 'admin-status-new'
     default:
       return 'admin-status-new'
   }
@@ -98,7 +113,7 @@ function getLastSixMonths() {
   })
 }
 
-// Komponen kartu statistik.
+// Komponen kartu statistik dashboard.
 function StatCard({
   title,
   value,
@@ -130,55 +145,76 @@ function DashboardAdmin() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [reports, setReports] = useState<ReportData[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [petugas, setPetugas] = useState<Petugas[]>([])
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Menyimpan informasi proses dan pesan aksi admin.
+  const [isSaving, setIsSaving] = useState(false)
+  const [savingReportId, setSavingReportId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
-  // Mengambil data admin, laporan, dan kategori dari backend.
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true)
-        setErrorMessage('')
+  // Menyimpan laporan yang sedang dibuka form penolakannya.
+  const [rejectionTarget, setRejectionTarget] = useState<string | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
 
-        const [currentUser, reportData, categoryData] = await Promise.all([
+  // Menyimpan pilihan petugas untuk setiap laporan.
+  const [selectedPetugas, setSelectedPetugas] = useState<
+    Record<string, string>
+  >({})
+
+  // Mengambil seluruh data dashboard dari backend.
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      const [currentUser, reportData, categoryData, petugasData] =
+        await Promise.all([
           getCurrentUser(),
           getReports(),
           getCategories(),
+          getPetugas(),
         ])
 
-        setUser(currentUser)
-        setReports(reportData)
-        setCategories(categoryData)
-      } catch (error) {
-        console.error('Gagal mengambil data dashboard admin:', error)
+      setUser(currentUser)
+      setReports(reportData)
+      setCategories(categoryData)
+      setPetugas(petugasData)
+    } catch (error) {
+      console.error('Gagal mengambil data dashboard admin:', error)
 
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : 'Gagal mengambil data dashboard.'
-        )
-      } finally {
-        setIsLoading(false)
-      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Gagal mengambil data dashboard.'
+      )
+    } finally {
+      setIsLoading(false)
     }
+  }
 
+  // Memuat data ketika halaman dashboard pertama kali dibuka.
+  useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // Menghitung statistik laporan berdasarkan status database.
+  // Menghitung statistik berdasarkan enam status resmi.
   const totalReports = reports.length
 
   const waitingReports = reports.filter(
-    (report) => report.status === 'menunggu_verifikasi'
+    (report) => report.status === 'BARU'
   ).length
 
   const processingReports = reports.filter(
-    (report) => report.status === 'diproses'
+    (report) =>
+      report.status === 'DITUGASKAN' ||
+      report.status === 'DITANGANI'
   ).length
 
   const completedReports = reports.filter(
-    (report) => report.status === 'selesai'
+    (report) => report.status === 'SELESAI'
   ).length
 
   // Menghitung jumlah laporan untuk setiap kategori.
@@ -202,7 +238,7 @@ function DashboardAdmin() {
     })
   }, [categories, reports, totalReports])
 
-  // Menyiapkan data enam bulan terakhir.
+  // Menyiapkan data laporan selama enam bulan terakhir.
   const monthlyReports = useMemo(() => {
     const months = getLastSixMonths()
 
@@ -223,7 +259,7 @@ function DashboardAdmin() {
     })
   }, [reports])
 
-  // Mengurutkan laporan terbaru berdasarkan waktu pembuatan.
+  // Mengurutkan lima laporan terbaru berdasarkan waktu pembuatan.
   const recentReports = useMemo(() => {
     return [...reports]
       .sort(
@@ -232,6 +268,21 @@ function DashboardAdmin() {
           new Date(a.created_at).getTime()
       )
       .slice(0, 5)
+  }, [reports])
+
+  // Mengambil semua laporan yang masih membutuhkan tindakan admin.
+  const actionableReports = useMemo(() => {
+    return [...reports]
+      .filter(
+        (report) =>
+          report.status === 'BARU' ||
+          report.status === 'TERVERIFIKASI'
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      )
   }, [reports])
 
   // Membuat diagram donat berdasarkan distribusi kategori.
@@ -265,6 +316,126 @@ function DashboardAdmin() {
     return category?.name || 'Kategori'
   }
 
+  // Mencari nama petugas berdasarkan ID penugasannya.
+  const getPetugasName = (assignedTo: string | null) => {
+    if (!assignedTo) {
+      return 'Belum ditugaskan'
+    }
+
+    const officer = petugas.find(
+      (item) => String(item.id) === String(assignedTo)
+    )
+
+    return officer?.name || `Petugas #${assignedTo}`
+  }
+
+  // Memverifikasi laporan yang masih berstatus BARU.
+  const handleVerify = async (reportId: string) => {
+    try {
+      setIsSaving(true)
+      setSavingReportId(reportId)
+      setErrorMessage('')
+      setSuccessMessage('')
+
+      await updateReportStatus(reportId, 'TERVERIFIKASI')
+
+      setSuccessMessage(`Laporan #${reportId} berhasil diverifikasi.`)
+      setRejectionTarget(null)
+      setRejectionReason('')
+
+      await fetchDashboardData()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Gagal memverifikasi laporan.'
+      )
+    } finally {
+      setIsSaving(false)
+      setSavingReportId(null)
+    }
+  }
+
+  // Menolak laporan dengan alasan minimal lima karakter.
+  const handleReject = async (reportId: string) => {
+    const reason = rejectionReason.trim()
+
+    if (reason.length < 5) {
+      setErrorMessage('Alasan penolakan minimal 5 karakter.')
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      setSavingReportId(reportId)
+      setErrorMessage('')
+      setSuccessMessage('')
+
+      await updateReportStatus(reportId, 'DITOLAK', reason)
+
+      setSuccessMessage(`Laporan #${reportId} berhasil ditolak.`)
+      setRejectionTarget(null)
+      setRejectionReason('')
+
+      await fetchDashboardData()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Gagal menolak laporan.'
+      )
+    } finally {
+      setIsSaving(false)
+      setSavingReportId(null)
+    }
+  }
+
+  // Menugaskan laporan terverifikasi kepada petugas yang dipilih.
+  const handleAssign = async (reportId: string) => {
+    const officerId = selectedPetugas[reportId]
+
+    if (!officerId) {
+      setErrorMessage('Pilih petugas terlebih dahulu.')
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      setSavingReportId(reportId)
+      setErrorMessage('')
+      setSuccessMessage('')
+
+      await assignReport(reportId, Number(officerId))
+
+      setSuccessMessage(`Laporan #${reportId} berhasil ditugaskan.`)
+
+      setSelectedPetugas((previous) => ({
+        ...previous,
+        [reportId]: '',
+      }))
+
+      await fetchDashboardData()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Gagal menugaskan petugas.'
+      )
+    } finally {
+      setIsSaving(false)
+      setSavingReportId(null)
+    }
+  }
+
+  // Membuka atau menutup form penolakan laporan.
+  const toggleRejectionForm = (reportId: string) => {
+    setErrorMessage('')
+    setRejectionReason('')
+    setRejectionTarget((current) =>
+      current === reportId ? null : reportId
+    )
+  }
+
   // Mengakhiri sesi admin.
   const handleLogout = () => {
     clearSession()
@@ -294,19 +465,19 @@ function DashboardAdmin() {
             <span>Dashboard</span>
           </Link>
 
-          <a href="#laporan-terbaru" className="admin-nav-item">
+          <a href="#antrean-admin" className="admin-nav-item">
             <FileText size={19} />
-            <span>Laporan Masuk</span>
+            <span>Verifikasi Laporan</span>
+          </a>
+
+          <a href="#laporan-terbaru" className="admin-nav-item">
+            <ClipboardList size={19} />
+            <span>Laporan Terbaru</span>
           </a>
 
           <a href="#ringkasan-kategori" className="admin-nav-item">
-            <ClipboardList size={19} />
-            <span>Ringkasan Laporan</span>
-          </a>
-
-          <a href="#data-admin" className="admin-nav-item">
             <Users size={19} />
-            <span>Data Pengguna</span>
+            <span>Ringkasan Kategori</span>
           </a>
 
           <a href="#pengaturan" className="admin-nav-item">
@@ -382,9 +553,9 @@ function DashboardAdmin() {
         {mobileMenuOpen && (
           <nav className="admin-mobile-navigation">
             <Link to="/admin/dashboard">Dashboard</Link>
-            <a href="#laporan-terbaru">Laporan Masuk</a>
-            <a href="#ringkasan-kategori">Ringkasan Laporan</a>
-            <a href="#data-admin">Data Pengguna</a>
+            <a href="#antrean-admin">Verifikasi Laporan</a>
+            <a href="#laporan-terbaru">Laporan Terbaru</a>
+            <a href="#ringkasan-kategori">Ringkasan Kategori</a>
             <button type="button" onClick={handleLogout}>
               Keluar
             </button>
@@ -409,8 +580,16 @@ function DashboardAdmin() {
           </section>
 
           {errorMessage && (
-            <div role="alert">
-              Gagal memuat data dashboard: {errorMessage}
+            <div className="admin-feedback admin-feedback-error" role="alert">
+              <AlertCircle size={17} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="admin-feedback admin-feedback-success" role="status">
+              <CheckCircle2 size={17} />
+              <span>{successMessage}</span>
             </div>
           )}
 
@@ -432,7 +611,7 @@ function DashboardAdmin() {
             <StatCard
               title="Sedang Ditangani"
               value={isLoading ? 0 : processingReports}
-              description="Dalam proses petugas"
+              description="Ditugaskan dan diproses"
               icon={<TrendingUp size={21} />}
               color="admin-stat-blue"
             />
@@ -532,6 +711,206 @@ function DashboardAdmin() {
             </article>
           </section>
 
+          {/* Antrean ini menampilkan semua laporan yang membutuhkan tindakan admin. */}
+          <section
+            className="admin-panel admin-action-panel"
+            id="antrean-admin"
+          >
+            <div className="admin-panel-heading">
+              <div>
+                <h2>Antrean Tindakan Admin</h2>
+                <p>
+                  Verifikasi laporan baru atau tugaskan laporan yang sudah
+                  terverifikasi.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="admin-refresh-button"
+                onClick={fetchDashboardData}
+                disabled={isLoading || isSaving}
+              >
+                <RefreshCw size={15} />
+                <span>Perbarui</span>
+              </button>
+            </div>
+
+            {isLoading ? (
+              <p className="admin-empty-state">Memuat antrean laporan...</p>
+            ) : actionableReports.length === 0 ? (
+              <div className="admin-empty-state">
+                <CheckCircle2 size={25} />
+                <strong>Tidak ada antrean tindakan.</strong>
+                <span>Semua laporan sudah diproses pada tahap admin.</span>
+              </div>
+            ) : (
+              <div className="admin-action-list">
+                {actionableReports.map((report) => {
+                  const isReportSaving = savingReportId === report.id
+
+                  return (
+                    <article className="admin-action-card" key={report.id}>
+                      <div className="admin-action-card-top">
+                        <div className="admin-report-icon">
+                          <FileText size={21} />
+                        </div>
+
+                        <div className="admin-report-info">
+                          <div className="admin-report-meta">
+                            <span>#{report.id}</span>
+                            <span
+                              className={`admin-status ${getStatusClass(report.status)}`}
+                            >
+                              {getStatusLabel(report.status)}
+                            </span>
+                          </div>
+
+                          <h3>{report.title}</h3>
+
+                          <div className="admin-report-details">
+                            <span>{getCategoryName(report)}</span>
+                            <span>
+                              <MapPin size={13} />
+                              {report.location}
+                            </span>
+                            <span>
+                              <CalendarDays size={13} />
+                              {formatDate(report.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Admin hanya dapat memverifikasi atau menolak laporan BARU. */}
+                      {report.status === 'BARU' && (
+                        <div className="admin-action-controls">
+                          {rejectionTarget === report.id ? (
+                            <div className="admin-rejection-form">
+                              <label htmlFor={`rejection-${report.id}`}>
+                                Alasan penolakan
+                              </label>
+
+                              <textarea
+                                id={`rejection-${report.id}`}
+                                value={rejectionReason}
+                                onChange={(event) =>
+                                  setRejectionReason(event.target.value)
+                                }
+                                placeholder="Jelaskan alasan laporan ditolak..."
+                                rows={3}
+                                minLength={5}
+                              />
+
+                              <small>
+                                Minimal 5 karakter. Alasan ini akan disimpan
+                                pada data laporan.
+                              </small>
+
+                              <div className="admin-action-buttons">
+                                <button
+                                  type="button"
+                                  className="admin-action-button admin-button-reject"
+                                  onClick={() => handleReject(report.id)}
+                                  disabled={isSaving}
+                                >
+                                  <X size={15} />
+                                  {isReportSaving ? 'Memproses...' : 'Konfirmasi Tolak'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="admin-action-button admin-button-cancel"
+                                  onClick={() => toggleRejectionForm(report.id)}
+                                  disabled={isSaving}
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="admin-action-buttons">
+                              <button
+                                type="button"
+                                className="admin-action-button admin-button-verify"
+                                onClick={() => handleVerify(report.id)}
+                                disabled={isSaving}
+                              >
+                                <Check size={15} />
+                                {isReportSaving ? 'Memproses...' : 'Verifikasi'}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="admin-action-button admin-button-reject-outline"
+                                onClick={() => toggleRejectionForm(report.id)}
+                                disabled={isSaving}
+                              >
+                                <X size={15} />
+                                Tolak
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Laporan terverifikasi dapat ditugaskan kepada petugas. */}
+                      {report.status === 'TERVERIFIKASI' && (
+                        <div className="admin-assignment-form">
+                          <div className="admin-assignment-label">
+                            <UserRound size={16} />
+                            <span>Pilih petugas penanganan</span>
+                          </div>
+
+                          <div className="admin-assignment-controls">
+                            <select
+                              value={selectedPetugas[report.id] || ''}
+                              onChange={(event) =>
+                                setSelectedPetugas((previous) => ({
+                                  ...previous,
+                                  [report.id]: event.target.value,
+                                }))
+                              }
+                              disabled={isSaving}
+                            >
+                              <option value="">Pilih petugas...</option>
+                              {petugas.map((officer) => (
+                                <option key={officer.id} value={officer.id}>
+                                  {officer.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              type="button"
+                              className="admin-action-button admin-button-assign"
+                              onClick={() => handleAssign(report.id)}
+                              disabled={
+                                isSaving ||
+                                !selectedPetugas[report.id] ||
+                                petugas.length === 0
+                              }
+                            >
+                              <Check size={15} />
+                              {isReportSaving ? 'Memproses...' : 'Tugaskan'}
+                            </button>
+                          </div>
+
+                          {petugas.length === 0 && (
+                            <small className="admin-assignment-hint">
+                              Belum ada petugas yang tersedia.
+                            </small>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Daftar ini tetap menampilkan lima laporan terbaru sebagai ringkasan. */}
           <section
             className="admin-panel admin-recent-panel"
             id="laporan-terbaru"
@@ -539,7 +918,7 @@ function DashboardAdmin() {
             <div className="admin-panel-heading">
               <div>
                 <h2>Laporan Terbaru</h2>
-                <p>Daftar laporan yang baru diterima dari warga.</p>
+                <p>Daftar lima laporan yang paling baru diterima.</p>
               </div>
               <span className="admin-view-all">
                 Total {totalReports} laporan
@@ -581,6 +960,19 @@ function DashboardAdmin() {
                           {formatDate(report.created_at)}
                         </span>
                       </div>
+
+                      {report.status === 'DITOLAK' && report.rejection_reason && (
+                        <p className="admin-rejection-display">
+                          Alasan penolakan: {report.rejection_reason}
+                        </p>
+                      )}
+
+                      {report.assigned_to && (
+                        <p className="admin-assigned-display">
+                          <UserRound size={13} />
+                          Petugas: {getPetugasName(report.assigned_to)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="admin-report-arrow">
@@ -599,9 +991,9 @@ function DashboardAdmin() {
             <div>
               <strong>Informasi data dashboard</strong>
               <p>
-                Statistik, grafik, distribusi kategori, dan daftar laporan
-                ditampilkan berdasarkan data laporan yang tersimpan
-                di database.
+                Statistik, grafik, distribusi kategori, antrean tindakan,
+                dan daftar laporan ditampilkan berdasarkan data yang
+                tersimpan di database.
               </p>
             </div>
           </section>
